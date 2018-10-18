@@ -1,0 +1,5 @@
+project(simple_mdp)
+cmake_minimum_required (VERSION 2.6)
+add_compile_options(-std=c++11)
+set(CMAKE_BUILD_TYPE Release)
+add_executable(main_mdp mdp_main.cpp markovdecision.h markovdecision.cpp)
