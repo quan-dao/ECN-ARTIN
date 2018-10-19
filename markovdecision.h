@@ -38,6 +38,7 @@ public:
     bool checkWall(state _state);
     bool checkTerminate(state _state);
     void valueIteration(double gamma, double epsilon);
+    void policyIteration(double gamma);
     char greedyPolicy(state _state);
 };
 

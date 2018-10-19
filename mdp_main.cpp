@@ -12,4 +12,6 @@ int main()
     simple_mdp.display('p');
     std::cout << "\nValue Iteration\n";
     simple_mdp.valueIteration(0.94, 0.01);
+//    std::cout << "Policy Iteration\n";
+//    simple_mdp.policyIteration(0.99);
 }

@@ -3,17 +3,22 @@
 #include <cstdlib>
 #include <cmath>
 
-MarkovDecision::MarkovDecision() : mapValue(map_size, 0), mapPolicy(map_size, '-')
+MarkovDecision::MarkovDecision() : mapValue(map_size, 0)
 {
     for(int i = 0; i < map_size; ++i) {
-        if(i == 3)
+        if(i == 3) {
             mapReward.push_back(1);
-        else if(i == 7)
+            mapPolicy.push_back('-');
+        } else if(i == 7) {
             mapReward.push_back(-1);
-        else if(i == 5)
+            mapPolicy.push_back('-');
+        } else if(i == 5) {
             mapReward.push_back(wall);
-        else
+            mapPolicy.push_back('-');
+        } else {
             mapReward.push_back(-0.04);
+            mapPolicy.push_back('<'); // initial policy (could be anything
+        }
     }
 }
 
@@ -68,22 +73,22 @@ std::vector<transitState> MarkovDecision::transition(const state _state, char _a
 
     // generate transition state
     switch(_act) {
-    case 'f' :
+    case '>' :
         generated.push_back({{_state.x + 1, _state.y}, 0.9});
         generated.push_back({{_state.x, _state.y - 1}, 0.1});
         generated.push_back({{_state.x, _state.y + 1}, 0.1});
         break;
-    case 'b' :
+    case '<' :
         generated.push_back({{_state.x - 1, _state.y}, 0.9});
         generated.push_back({{_state.x, _state.y - 1}, 0.1});
         generated.push_back({{_state.x, _state.y + 1}, 0.1});
         break;
-    case 'u' :
+    case '^' :
         generated.push_back({{_state.x, _state.y - 1}, 0.9});
         generated.push_back({{_state.x - 1, _state.y}, 0.1});
         generated.push_back({{_state.x + 1, _state.y}, 0.1});
         break;
-    case 'd' :
+    case 'v' :
         generated.push_back({{_state.x, _state.y + 1}, 0.9});
         generated.push_back({{_state.x - 1, _state.y}, 0.1});
         generated.push_back({{_state.x + 1, _state.y}, 0.1});
@@ -131,14 +136,16 @@ char MarkovDecision::greedyPolicy(state _state)
     neighborhoods.push_back({_state.x, _state.y - 1});
     neighborhoods.push_back({_state.x, _state.y + 1});
     // find max neighbor
-    double max_u = 0;
+    double max_u = -1000;  // if put 0 in here, there will be trouble cuz value of most cell is negative
     int new_x = 0, new_y = 0;
-    for(auto _state : neighborhoods) {
-        if(!checkWall(_state)) {
-            if(cellValue(_state.x, _state.y) > max_u) {
-                max_u = cellValue(_state.x, _state.y);
-                new_x = _state.x;
-                new_y = _state.y;
+    for(auto neighbor : neighborhoods) {
+        if(neighbor.x > -1 && neighbor.x < 4 && neighbor.y > -1 && neighbor.y < 3){
+            if(!checkWall(neighbor)) {
+                if(cellValue(neighbor.x, neighbor.y) > max_u) {
+                    max_u = cellValue(neighbor.x, neighbor.y);
+                    new_x = neighbor.x;
+                    new_y = neighbor.y;
+                }
             }
         }
     }
@@ -172,7 +179,7 @@ void MarkovDecision::valueIteration(double gamma, double epsilon)
                     if(!checkTerminate(_state)) {
                         // compute max utility for all possible action
                         double max_act_u = 0;
-                        std::vector<char> acts_list = {'b', 'f', 'u', 'd'};
+                        std::vector<char> acts_list = {'<', '>', '^', 'v'};
                         for (auto act : acts_list) {
                             double act_u = 0;
                             for(auto transit_state : transition(_state, act)) {
@@ -227,6 +234,67 @@ void MarkovDecision::valueIteration(double gamma, double epsilon)
             ++iter;
         }
 
+    }
+}
+
+
+void MarkovDecision::policyIteration(double gamma)
+{
+    int iter = 0;
+    while(true) {
+        std::vector<double> new_mapValue;
+        // Compute new_u for every state
+        for(int j = 0; j < 3; ++j) {
+            for(int i = 0; i < 4; ++i){
+                state _state = {i, j};
+                double new_u = 0;
+                if(!checkWall(_state) && !checkTerminate(_state)) {
+                    // get action
+                    char act = cellPolicy(_state.x, _state.y);
+                    // compute new U for this cell
+                    new_u = cellReward(_state.x, _state.y);
+                    for(auto transitState : transition(_state, act)) {
+                        new_u += gamma * transitState.prob * cellValue(transitState._state.x, transitState._state.y);
+                    }
+                } else {
+                    new_u = cellReward(_state.x, _state.y);
+                }
+                // store new_u
+                new_mapValue.push_back(new_u);
+            }
+        }
+        // Update current map
+        for(int j = 0; j < 3; ++j) {
+            for (int i = 0; i < 4; ++i)
+                cellValue(i, j) = new_mapValue[i + 4 * j];
+        }
+        // Update policy
+        bool conver = true;
+        for(int j = 0; j < 3; ++j) {
+            for(int i = 0; i < 4; ++i) {
+                state _state = {i, j};
+                if(!checkWall(_state) && !checkTerminate(_state)) {
+                    // check convergence
+                    if(cellPolicy(_state.x, _state.y) != greedyPolicy(_state)) {
+                        conver = false;
+                        // update mapPolicy
+                        cellPolicy(_state.x, _state.y) = greedyPolicy(_state);
+                    }
+                } else
+                    // wall or terminal state -> no need to go anywhere
+                    cellPolicy(_state.x, _state.y) = '-';
+            }
+        }
+        // Display
+        std::cout << "\niter: " << iter <<"\n";
+        std::cout << "Value map\n";
+        display('v');
+        std::cout << "Policy map\n";
+        display('p');
+
+        ++iter;
+        if(conver)
+            break;
     }
 }
 
