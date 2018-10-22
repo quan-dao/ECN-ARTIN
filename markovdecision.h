@@ -32,9 +32,9 @@ public:
     MarkovDecision();
     std::vector<transitState> transition(const state _state, char _act);
     void display(char map_type);
-    double cellReward(int x, int y);
-    double& cellValue(int x, int y);
-    char& cellPolicy(int x, int y);
+    double cellReward(state _state);
+    double& cellValue(state _state);
+    char& cellPolicy(state _state);
     bool checkWall(state _state);
     bool checkTerminate(state _state);
     void valueIteration(double gamma, double epsilon);
