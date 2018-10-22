@@ -62,6 +62,13 @@ void MarkovDecision::display(char map_type)
 }
 
 
+void putInRange(state& new_state, state current_state)
+{
+    new_state.x = current_state.x;
+    new_state.y = current_state.y;
+}
+
+
 std::vector<transitState> MarkovDecision::transition(const state _state, char _act)
 {
     // _act: forth/ back, up/down
@@ -74,33 +81,31 @@ std::vector<transitState> MarkovDecision::transition(const state _state, char _a
     // generate transition state
     switch(_act) {
     case '>' :
-        generated.push_back({{_state.x + 1, _state.y}, 0.9});
+        generated.push_back({{_state.x + 1, _state.y}, 0.8});
         generated.push_back({{_state.x, _state.y - 1}, 0.1});
         generated.push_back({{_state.x, _state.y + 1}, 0.1});
         break;
     case '<' :
-        generated.push_back({{_state.x - 1, _state.y}, 0.9});
+        generated.push_back({{_state.x - 1, _state.y}, 0.8});
         generated.push_back({{_state.x, _state.y - 1}, 0.1});
         generated.push_back({{_state.x, _state.y + 1}, 0.1});
         break;
     case '^' :
-        generated.push_back({{_state.x, _state.y - 1}, 0.9});
+        generated.push_back({{_state.x, _state.y - 1}, 0.8});
         generated.push_back({{_state.x - 1, _state.y}, 0.1});
         generated.push_back({{_state.x + 1, _state.y}, 0.1});
         break;
     case 'v' :
-        generated.push_back({{_state.x, _state.y + 1}, 0.9});
+        generated.push_back({{_state.x, _state.y + 1}, 0.8});
         generated.push_back({{_state.x - 1, _state.y}, 0.1});
         generated.push_back({{_state.x + 1, _state.y}, 0.1});
         break;
     }
 
     // check if hitting wall
-    for(int i = 0; i < 3; ++i) {
-        if(checkWall({generated[i]._state.x, generated[i]._state.y})) {
-            double prob = generated[i].prob;
-            generated.erase(generated.begin() + i);
-            generated.push_back({{_state.x, _state.y}, prob});
+    for(int i = 0; i < 3; i++) {
+        if(checkWall(generated.at(i)._state)) {
+            putInRange(generated[i]._state, _state);
         }
     }
 
@@ -113,9 +118,10 @@ bool isNull(double a)
     return std::abs(a) < 1e-5;
 }
 
+
 bool MarkovDecision::checkWall(state _state)
 {
-    if(_state.x < x_min || _state.x > x_max || _state.y < y_min || _state.y > y_max)
+    if(_state.x < 0 || _state.x > x_max || _state.y < 0 || _state.y > y_max)
         return true;
 
     return isNull(cellReward(_state.x, _state.y) - wall);
@@ -178,12 +184,14 @@ void MarkovDecision::valueIteration(double gamma, double epsilon)
                 if(!checkWall(_state)) {
                     if(!checkTerminate(_state)) {
                         // compute max utility for all possible action
-                        double max_act_u = 0;
+                        double max_act_u = -1000; //mistake here
                         std::vector<char> acts_list = {'<', '>', '^', 'v'};
                         for (auto act : acts_list) {
                             double act_u = 0;
                             for(auto transit_state : transition(_state, act)) {
                                 act_u += transit_state.prob * cellValue(transit_state._state.x, transit_state._state.y);
+//                                if(i==0 && j==0)
+//                                    std::cout << transit_state._state.x << "\t" << transit_state._state.y << "\t" << transit_state.prob << "\t" << act_u << "\n";
                             }
                             if(act_u > max_act_u)
                                 max_act_u = act_u;
